@@ -40,14 +40,14 @@ main (protected — PR review required)
 | # | User Story | Commit | Status |
 |---|---|---|---|
 | 1.1 | Add system architecture overview with Mermaid diagrams | `Add system architecture doc` | ✅ |
-| 1.2 | Add module specifications (HAL, Vision, Nav, Comms, Decision) | `Add module specification docs` | |
-| 1.3 | Add data flow diagrams (frame pipeline, nav fusion, mode switching) | `Add data flow diagrams` | |
-| 1.4 | Add security architecture doc | `Add security architecture doc` | |
-| 1.5 | Add CER (soft-kill resistance) design doc | `Add CER design doc` | |
-| 1.6 | Add decision engine design doc | `Add decision engine design doc` | |
-| 1.7 | Add deployment architecture doc | `Add deployment architecture doc` | |
-| 1.8 | Add API contracts doc (types + protocols) | `Add API contracts doc` | |
-| 1.9 | Add project roadmap and contributing guide | `Add roadmap and contributing guide` | |
+| 1.2 | Add module specifications (HAL, Vision, Nav, Comms, Decision) | `Add module specification docs` | ✅ |
+| 1.3 | Add data flow diagrams (frame pipeline, nav fusion, mode switching) | `Add data flow diagrams` | ✅ |
+| 1.4 | Add security architecture doc | `Add security architecture doc` | ✅ |
+| 1.5 | Add CER (soft-kill resistance) design doc | `Add CER design doc` | ✅ |
+| 1.6 | Add decision engine design doc | `Add decision engine design doc` | ✅ |
+| 1.7 | Add deployment architecture doc | `Add deployment architecture doc` | ✅ |
+| 1.8 | Add API contracts doc (types + protocols) | `Add API contracts doc` | ✅ |
+| 1.9 | Add project roadmap and contributing guide | `Add roadmap and contributing guide` | ✅ |
 
 ---
 
