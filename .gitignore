@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment / Secrets
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+
+# Model weights (large binary files — tracked via Git LFS or downloaded separately)
+*.onnx
+*.engine
+*.trt
+*.hef
+*.pt
+*.pth
+*.weights
+
+# Model cache (compiled at deploy time)
+model_cache/
+
+# Logs
+*.log
+logs/
+
+# Coverage / Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# Docker
+docker/tmp/
+
+# C++ build artifacts
+src/vio_cpp/build/
+*.o
+*.a
+*.dylib

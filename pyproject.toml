@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aerialmind"
+version = "0.1.0"
+description = "AI-powered drone surveillance software with cognitive edge resilience"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.11"
+authors = [
+    {name = "Omkar Joshi", email = "omkarjoshi0304@users.noreply.github.com"},
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+]
+
+dependencies = [
+    "numpy>=1.26.0",
+    "opencv-python>=4.9.0",
+    "pydantic>=2.5.0",
+    "pyyaml>=6.0",
+    "protobuf>=4.25.0",
+]
+
+[project.optional-dependencies]
+vision = [
+    "ultralytics>=8.1.0",
+    "supervision>=0.18.0",
+    "onnxruntime>=1.17.0",
+]
+nav = [
+    "scipy>=1.12.0",
+    "pyproj>=3.6.0",
+]
+comms = [
+    "pymavlink>=2.4.0",
+    "cryptography>=42.0.0",
+]
+jetson = [
+    "onnxruntime-gpu>=1.17.0",
+]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.23.0",
+    "mypy>=1.8.0",
+    "ruff>=0.2.0",
+]
+all = [
+    "aerialmind[vision,nav,comms,dev]",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
