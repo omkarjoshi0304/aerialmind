@@ -266,3 +266,114 @@ class BehaviorEvent:
     involved_tracks: list[int]
     location_frame: tuple[float, float]
     mono_ts: float
+
+
+# ---------------------------------------------------------------------------
+# Navigation & Decision Data Types
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class NavState:
+    """Drone's fused navigation state — output of the EKF.
+
+    Attributes:
+        position: (lat, lon, alt) in WGS84 or (north, east, down) in
+                  local NED frame, depending on coordinate_frame.
+        velocity: (vn, ve, vd) in m/s, NED frame.
+        attitude: Orientation as quaternion (w, x, y, z).
+        position_uncertainty: 1-sigma uncertainty in meters (north, east, down).
+                              Grows over time in GPS-denied mode. Used by the
+                              CER controller to decide when to abort RTB.
+        coordinate_frame: "WGS84" when GPS is available, "LOCAL_NED" when
+                          GPS-denied (position is meters from takeoff point).
+        mono_ts: Monotonic timestamp of this estimate.
+    """
+
+    position: tuple[float, float, float]
+    velocity: tuple[float, float, float]
+    attitude: tuple[float, float, float, float]
+    position_uncertainty: tuple[float, float, float]
+    coordinate_frame: str
+    mono_ts: float
+
+
+@dataclass(frozen=True)
+class LinkStatus:
+    """Ground station communication link health.
+
+    Attributes:
+        connected: True if heartbeats are arriving within timeout.
+        latency_ms: Round-trip time to the ground station.
+        rssi_dbm: Signal strength in dBm (None if link type doesn't report it).
+        quality_pct: Composite link quality, 0-100.
+        last_heartbeat_ts: Monotonic timestamp of last received heartbeat.
+                           If now - last_heartbeat_ts > 3.0, link is lost.
+    """
+
+    connected: bool
+    latency_ms: float
+    rssi_dbm: float | None
+    quality_pct: float
+    last_heartbeat_ts: float
+
+
+@dataclass(frozen=True)
+class ThreatAssessment:
+    """Composite threat score from the threat assessor.
+
+    Attributes:
+        level: Discrete threat level (NONE through CRITICAL).
+        score: Continuous threat score, 0-100.
+        threats: Individual threat signals, e.g.,
+                 [{"track_id": 7, "type": "weapon", "confidence": 0.87}].
+        mono_ts: When this assessment was computed.
+    """
+
+    level: ThreatLevel
+    score: float
+    threats: list[dict[str, object]]
+    mono_ts: float
+
+
+@dataclass(frozen=True)
+class Recommendation:
+    """A recommended action from the decision engine.
+
+    Attributes:
+        action: Action verb — "TRACK_CLOSELY", "ALERT_AUTHORITIES",
+                "RETURN_TO_BASE", "POP_UP_AND_SEARCH".
+        priority: 1 (highest) to 5 (lowest).
+        rationale: Human-readable reason for this recommendation.
+        constraints: Action-specific limits, e.g.,
+                     {"max_duration_sec": 120, "max_deviation_m": 200}.
+        roe_rule_id: ID of the ROE rule that generated this recommendation
+                     (None if operator-initiated). This is the audit trail.
+    """
+
+    action: str
+    priority: int
+    rationale: str
+    constraints: dict[str, object]
+    roe_rule_id: str | None
+
+
+@dataclass(frozen=True)
+class ActionDecision:
+    """Final go/no-go on a recommended action.
+
+    Attributes:
+        approved: Whether the action is approved for execution.
+        action: The action being decided on.
+        authority: Who approved — "OPERATOR", "ROE_AUTONOMOUS",
+                   or "CER_OVERRIDE".
+        constraints: Execution constraints applied to this action.
+        audit_id: Unique ID for compliance logging — every autonomous
+                  action must be traceable.
+    """
+
+    approved: bool
+    action: str
+    authority: str
+    constraints: dict[str, object]
+    audit_id: str
