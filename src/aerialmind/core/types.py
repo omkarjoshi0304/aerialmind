@@ -178,3 +178,91 @@ class OpticalFlowReading:
     quality: int
     ground_distance: float
     mono_ts: float
+
+
+# ---------------------------------------------------------------------------
+# Vision Data Types
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Detection:
+    """A single object detected in a frame.
+
+    Attributes:
+        bbox: Bounding box as (x1, y1, x2, y2) in normalized coordinates
+              (0.0-1.0). Normalized so the same detection works regardless
+              of frame resolution.
+        class_id: Integer class index from the model (e.g., 0=handgun).
+        class_name: Human-readable class label (e.g., "handgun").
+        confidence: Detection confidence, 0.0-1.0.
+    """
+
+    bbox: tuple[float, float, float, float]
+    class_id: int
+    class_name: str
+    confidence: float
+
+
+@dataclass(frozen=True)
+class PoseResult:
+    """Skeletal pose estimation for one detected person.
+
+    Attributes:
+        keypoints: K x 3 numpy array — K body joints, each with
+                   (x, y, confidence). Standard COCO format: 17 keypoints
+                   (nose, eyes, ears, shoulders, elbows, wrists, hips,
+                   knees, ankles).
+        detection: The Detection this pose was estimated from.
+    """
+
+    keypoints: NDArray[np.float32]
+    detection: Detection
+
+
+@dataclass(frozen=True)
+class Track:
+    """An object tracked across multiple frames by ByteTrack.
+
+    Attributes:
+        track_id: Persistent ID across frames.
+        bbox: Current bounding box (x1, y1, x2, y2) normalized.
+        velocity: Movement speed in pixels/frame (vx, vy).
+        age: Frames since first seen — age > 30 (~2s at 15fps) means
+             this is a confirmed track, not a momentary false detection.
+        class_id: Object class index.
+        class_name: Human-readable class label.
+        confidence: Current detection confidence.
+    """
+
+    track_id: int
+    bbox: tuple[float, float, float, float]
+    velocity: tuple[float, float]
+    age: int
+    class_id: int
+    class_name: str
+    confidence: float
+
+
+@dataclass(frozen=True)
+class BehaviorEvent:
+    """A classified behavior pattern detected over time.
+
+    The behavior analyzer watches tracks and poses across frames
+    and classifies patterns: rapid convergence + aggressive poses = "fight",
+    raised arm + weapon detection = "weapon_brandish".
+
+    Attributes:
+        event_type: Behavior label — "fight", "weapon_brandish",
+                    "crowd_surge", "loitering", etc.
+        confidence: Classification confidence, 0.0-1.0.
+        involved_tracks: List of track_ids involved in this event.
+        location_frame: Center (x, y) in frame coordinates.
+        mono_ts: When this event was detected.
+    """
+
+    event_type: str
+    confidence: float
+    involved_tracks: list[int]
+    location_frame: tuple[float, float]
+    mono_ts: float
