@@ -19,7 +19,15 @@ if TYPE_CHECKING:
 
     import numpy as np
 
-from aerialmind.core.types import OpticalFlowReading, TimestampedIMU
+from aerialmind.core.types import (
+    BehaviorEvent,
+    Detection,
+    OpticalFlowReading,
+    PoseResult,
+    TimestampedFrame,
+    TimestampedIMU,
+    Track,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -185,4 +193,88 @@ class AltimeterHAL(Protocol):
 
     def close(self) -> None:
         """Release altimeter resources."""
+        ...
+
+
+# ---------------------------------------------------------------------------
+# Vision Pipeline Protocols
+# ---------------------------------------------------------------------------
+
+
+@runtime_checkable
+class ObjectDetectorInterface(Protocol):
+    """Interface for object detection models (e.g., YOLOv10).
+
+    Runs at 15 fps on every frame. The AcceleratorHAL handles the
+    actual inference; this interface handles pre/post-processing.
+    """
+
+    def detect(self, frame: TimestampedFrame) -> list[Detection]:
+        """Run detection on a single frame."""
+        ...
+
+    def get_class_names(self) -> list[str]:
+        """Return the list of class names the current model can detect."""
+        ...
+
+    def swap_model(self, model_path: str) -> None:
+        """Hot-swap the detection model (e.g., on mode switch).
+
+        Called by the Mode Manager when switching between Military
+        and Civil modes to load a different set of detection classes.
+        """
+        ...
+
+
+@runtime_checkable
+class PoseEstimatorInterface(Protocol):
+    """Interface for skeletal pose estimation (e.g., YOLO-Pose).
+
+    Runs at 5 fps (every 3rd frame). Only estimates poses on
+    already-detected persons to save compute.
+    """
+
+    def estimate(
+        self, frame: TimestampedFrame, detections: list[Detection]
+    ) -> list[PoseResult]:
+        """Estimate body poses for detected persons in the frame."""
+        ...
+
+
+@runtime_checkable
+class TrackerInterface(Protocol):
+    """Interface for multi-object tracking (e.g., ByteTrack).
+
+    Assigns persistent track_ids across frames so the system can
+    reason about individuals over time, not just per-frame blobs.
+    """
+
+    def update(
+        self, detections: list[Detection], frame: TimestampedFrame
+    ) -> list[Track]:
+        """Update tracks with new detections from the current frame."""
+        ...
+
+    def reset(self) -> None:
+        """Clear all track state.
+
+        Called when camera view changes dramatically (e.g., drone
+        pivots 180 degrees) to avoid false track continuity.
+        """
+        ...
+
+
+@runtime_checkable
+class BehaviorAnalyzerInterface(Protocol):
+    """Interface for behavior pattern classification.
+
+    Runs at 3 fps (every 5th frame). Watches tracks and poses
+    over time to classify patterns: fights, weapon brandishing,
+    crowd surges, loitering.
+    """
+
+    def analyze(
+        self, tracks: list[Track], poses: list[PoseResult]
+    ) -> list[BehaviorEvent]:
+        """Classify behavior patterns from current tracks and poses."""
         ...
