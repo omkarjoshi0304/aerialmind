@@ -20,10 +20,18 @@ if TYPE_CHECKING:
     import numpy as np
 
 from aerialmind.core.types import (
+    ActionDecision,
     BehaviorEvent,
+    DecisionState,
     Detection,
+    GPSFix,
+    LinkStatus,
+    NavState,
+    OperatingMode,
     OpticalFlowReading,
     PoseResult,
+    Recommendation,
+    ThreatAssessment,
     TimestampedFrame,
     TimestampedIMU,
     Track,
@@ -277,4 +285,191 @@ class BehaviorAnalyzerInterface(Protocol):
         self, tracks: list[Track], poses: list[PoseResult]
     ) -> list[BehaviorEvent]:
         """Classify behavior patterns from current tracks and poses."""
+        ...
+
+
+# ---------------------------------------------------------------------------
+# Navigation Protocols
+# ---------------------------------------------------------------------------
+
+
+@runtime_checkable
+class VIOEngineInterface(Protocol):
+    """Interface for Visual-Inertial Odometry (e.g., ORB-SLAM3, Basalt).
+
+    Runs in a separate C++ process (isolated Docker container) for
+    crash safety. Communicates via shared memory for frame data.
+    """
+
+    def initialize(
+        self, camera_intrinsics: dict[str, object], imu_noise: dict[str, object]
+    ) -> None:
+        """Initialize with camera calibration and IMU noise model.
+
+        These values are hardware-specific — the HAL providers supply
+        them via CameraHAL.get_intrinsics() and IMUHAL.get_noise_params().
+        """
+        ...
+
+    def process_frame(
+        self,
+        frame: TimestampedFrame,
+        imu_readings: list[TimestampedIMU],
+    ) -> Optional[NavState]:
+        """Process a camera frame with IMU readings since the last frame.
+
+        Returns None if tracking is lost (insufficient visual features).
+        When this returns None, the EKF falls back to IMU-only prediction
+        and optical flow if available.
+        """
+        ...
+
+    def get_tracking_quality(self) -> float:
+        """Return tracking quality, 0.0-1.0.
+
+        Below ~0.3 = tracking is degraded (featureless terrain).
+        Below ~0.1 = tracking is effectively lost.
+        The CER controller monitors this to decide fallback strategies.
+        """
+        ...
+
+    def reset(self) -> None:
+        """Reset VIO state and map. Called on camera view changes."""
+        ...
+
+
+@runtime_checkable
+class NavigationEKFInterface(Protocol):
+    """Interface for the 15-state Extended Kalman Filter.
+
+    The EKF fuses all sensor data into a single best estimate
+    of the drone's state (position, velocity, attitude, biases).
+
+    States: position(3) + velocity(3) + attitude(4 quaternion) +
+            gyro_bias(3) + accel_bias(3) = 16 states
+            (stored as 15 with quaternion constraint).
+    """
+
+    def predict(self, imu: TimestampedIMU) -> NavState:
+        """IMU prediction step — runs at 200-400 Hz.
+
+        Propagates state forward using accelerometer and gyroscope.
+        This is the fast inner loop of the navigation system.
+        """
+        ...
+
+    def update_gps(self, gps: GPSFix) -> NavState:
+        """GPS measurement update — runs at 1-10 Hz.
+
+        Only called when GPS integrity check passes (gps.valid == True).
+        """
+        ...
+
+    def update_vio(self, vio_pose: NavState) -> NavState:
+        """VIO measurement update — runs at 15 Hz.
+
+        Primary position/attitude correction, especially in GPS-denied mode.
+        """
+        ...
+
+    def update_baro(self, altitude: float, mono_ts: float) -> NavState:
+        """Barometric altitude update — runs at 10 Hz.
+
+        Constrains vertical drift. Less accurate than altimeter
+        but available on all platforms.
+        """
+        ...
+
+    def update_optical_flow(self, flow: OpticalFlowReading) -> NavState:
+        """Optical flow velocity update.
+
+        Fallback when VIO tracking is lost (featureless terrain).
+        Provides X/Y velocity constraint with almost zero compute.
+        """
+        ...
+
+    def update_altimeter(self, altitude: float, mono_ts: float) -> NavState:
+        """Laser/radar altimeter update.
+
+        Absolute ground-truth altitude — much more accurate than
+        barometric altitude for vertical position estimation.
+        """
+        ...
+
+    def get_state(self) -> NavState:
+        """Return the current fused navigation state estimate."""
+        ...
+
+
+# ---------------------------------------------------------------------------
+# Decision Protocols
+# ---------------------------------------------------------------------------
+
+
+@runtime_checkable
+class DecisionEngineInterface(Protocol):
+    """Interface for the rule-based decision engine.
+
+    Deliberately NOT ML-based for the MVP — defense and law enforcement
+    customers require every autonomous decision to be traceable to
+    a specific ROE rule for legal and compliance reasons.
+    """
+
+    def process(
+        self,
+        behaviors: list[BehaviorEvent],
+        tracks: list[Track],
+        nav_state: NavState,
+        link_status: LinkStatus,
+    ) -> ActionDecision:
+        """Process current intelligence and produce an action decision.
+
+        This is the core loop: evidence in → auditable decision out.
+        """
+        ...
+
+    def get_state(self) -> DecisionState:
+        """Return the current decision state machine state."""
+        ...
+
+    def set_mode(self, mode: OperatingMode) -> None:
+        """Switch operating mode (changes threat scoring weights)."""
+        ...
+
+    def load_roe(self, roe_path: str) -> None:
+        """Load a signed ROE policy YAML file.
+
+        ROE policies define the boundaries of autonomous action.
+        The signature is verified before loading.
+        """
+        ...
+
+
+@runtime_checkable
+class TelemetryInterface(Protocol):
+    """Interface for ground station communication.
+
+    All data goes through AES-256-GCM encryption under the hood.
+    """
+
+    def send_scene_report(
+        self,
+        detections: list[Detection],
+        tracks: list[Track],
+        behaviors: list[BehaviorEvent],
+        nav_state: NavState,
+    ) -> bool:
+        """Send current scene to the ground station. Returns success."""
+        ...
+
+    def send_alert(
+        self,
+        assessment: ThreatAssessment,
+        recommendation: Recommendation,
+    ) -> bool:
+        """Send a threat alert to the operator. Returns success."""
+        ...
+
+    def receive_command(self) -> Optional[dict[str, object]]:
+        """Poll for operator commands. Returns None if no command."""
         ...
