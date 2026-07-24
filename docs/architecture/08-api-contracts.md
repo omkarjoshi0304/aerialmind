@@ -40,6 +40,20 @@ class DecisionState(Enum):
     AUTONOMOUS_ACTION = auto()
     RETURNING = auto()
     LANDED = auto()
+
+class ResourcePriority(Enum):
+    """QoS priority levels for compute resource allocation.
+    
+    In NOMINAL mode, vision gets most compute. When CER triggers,
+    navigation becomes life-or-death — the Orchestrator's QoS Manager
+    uses these to dynamically throttle vision and give VIO/EKF
+    100% of the compute needed to keep the drone in the air.
+    """
+    CRITICAL = 0       # Navigation during CER — never throttle
+    HIGH = 1           # Vision in NOMINAL — full framerate
+    NORMAL = 2         # Pose estimation — can drop to lower fps
+    LOW = 3            # Behavior analysis — can pause entirely
+    BACKGROUND = 4     # Logging, telemetry — best-effort
 ```
 
 ## Value Objects (Data Types)
@@ -100,6 +114,19 @@ class BehaviorEvent:
     confidence: float
     involved_tracks: list[int]       # track_ids
     location_frame: tuple[float, float]  # center x, y in frame coords
+    mono_ts: float
+
+@dataclass(frozen=True)
+class OpticalFlowReading:
+    """Raw X/Y velocity from a downward-facing optical flow sensor (e.g., PX4Flow).
+    
+    Works even when ORB-SLAM3 can't find visual features (desert, water, night).
+    Almost zero compute cost — a cheap hardware fallback for GPS-denied flight.
+    """
+    vx: float                       # m/s, body-frame X
+    vy: float                       # m/s, body-frame Y
+    quality: int                    # 0-255, sensor-reported confidence
+    ground_distance: float          # meters, from integrated rangefinder
     mono_ts: float
 
 @dataclass(frozen=True)
@@ -177,6 +204,27 @@ class GPSHAL(Protocol):
     def read(self) -> Optional[GPSFix]: ...
     def close(self) -> None: ...
 
+class OpticalFlowHAL(Protocol):
+    """Downward-facing optical flow sensor (e.g., PX4Flow).
+    
+    Provides raw X/Y velocity even when ORB-SLAM3 fails (featureless terrain).
+    Almost zero compute — a cheap hardware safety net for GPS-denied flight.
+    """
+    def open(self, config: dict) -> None: ...
+    def read(self) -> Optional[OpticalFlowReading]: ...
+    def close(self) -> None: ...
+
+class AltimeterHAL(Protocol):
+    """Laser/radar altimeter for absolute Z-axis altitude.
+    
+    Barometers drift with weather. A cheap LiDAR altimeter gives ground-truth
+    height, taking massive strain off the EKF's vertical uncertainty estimate.
+    """
+    def open(self, config: dict) -> None: ...
+    def read_altitude(self) -> Optional[tuple[float, float]]: ...
+    """Returns (altitude_m, mono_ts) or None if no reading."""
+    def close(self) -> None: ...
+
 class ObjectDetectorInterface(Protocol):
     def detect(self, frame: TimestampedFrame) -> list[Detection]: ...
     def get_class_names(self) -> list[str]: ...
@@ -208,6 +256,8 @@ class NavigationEKFInterface(Protocol):
     def update_gps(self, gps: GPSFix) -> NavState: ...
     def update_vio(self, vio_pose: NavState) -> NavState: ...
     def update_baro(self, altitude: float, mono_ts: float) -> NavState: ...
+    def update_optical_flow(self, flow: OpticalFlowReading) -> NavState: ...
+    def update_altimeter(self, altitude: float, mono_ts: float) -> NavState: ...
     def get_state(self) -> NavState: ...
 
 class DecisionEngineInterface(Protocol):
