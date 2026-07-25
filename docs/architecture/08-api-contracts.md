@@ -40,14 +40,32 @@ class DecisionState(Enum):
     AUTONOMOUS_ACTION = auto()
     RETURNING = auto()
     LANDED = auto()
+
+class ResourcePriority(Enum):
+    """QoS priority levels for compute resource allocation.
+    
+    In NOMINAL mode, vision gets most compute. When CER triggers,
+    navigation becomes life-or-death — the Orchestrator's QoS Manager
+    uses these to dynamically throttle vision and give VIO/EKF
+    100% of the compute needed to keep the drone in the air.
+    """
+    CRITICAL = 0       # Navigation during CER — never throttle
+    HIGH = 1           # Vision in NOMINAL — full framerate
+    NORMAL = 2         # Pose estimation — can drop to lower fps
+    LOW = 3            # Behavior analysis — can pause entirely
+    BACKGROUND = 4     # Logging, telemetry — best-effort
 ```
 
 ## Value Objects (Data Types)
 
 These use Python's `@dataclass(frozen=True)` — meaning once created, they cannot be modified. This is intentional: sensor readings and computed states are historical facts at the moment they're created. Immutability prevents an entire category of bugs where one module accidentally mutates data another module is still using.
 
+Types containing numpy arrays (`TimestampedFrame`, `PoseResult`) use `eq=False` because numpy arrays don't support element-wise `==` in a boolean context. Identity comparison (`is`) is the correct semantic for these — two frames are distinct captures even if pixel data matches.
+
+All container fields use immutable types: `tuple` instead of `list`, and typed frozen dataclasses (`ThreatSignal`, `ActionConstraints`) instead of `dict`. This guarantees deep immutability, not just shallow field reassignment prevention.
+
 ```python
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class TimestampedFrame:
     frame: NDArray[np.uint8]        # H x W x C
     mono_ts: float                  # monotonic timestamp (seconds)
@@ -79,7 +97,7 @@ class Detection:
     class_name: str
     confidence: float
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class PoseResult:
     keypoints: NDArray[np.float32]   # Kx3 (x, y, confidence)
     detection: Detection
@@ -98,15 +116,28 @@ class Track:
 class BehaviorEvent:
     event_type: str                  # "fight", "weapon_brandish", "crowd_surge", etc.
     confidence: float
-    involved_tracks: list[int]       # track_ids
+    involved_tracks: tuple[int, ...]  # track_ids (tuple for immutability)
     location_frame: tuple[float, float]  # center x, y in frame coords
+    mono_ts: float
+
+@dataclass(frozen=True)
+class OpticalFlowReading:
+    """Raw X/Y velocity from a downward-facing optical flow sensor (e.g., PX4Flow).
+    
+    Works even when ORB-SLAM3 can't find visual features (desert, water, night).
+    Almost zero compute cost — a cheap hardware fallback for GPS-denied flight.
+    """
+    vx: float                       # m/s, body-frame X
+    vy: float                       # m/s, body-frame Y
+    quality: int                    # 0-255, sensor-reported confidence
+    ground_distance: float          # meters, from integrated rangefinder
     mono_ts: float
 
 @dataclass(frozen=True)
 class NavState:
     position: tuple[float, float, float]         # lat, lon, alt (or local NED if GPS-denied)
     velocity: tuple[float, float, float]         # m/s NED
-    attitude: tuple[float, float, float, float]  # quaternion (w, x, y, z)
+    attitude_wxyz: tuple[float, float, float, float]  # quaternion (w, x, y, z)
     position_uncertainty: tuple[float, float, float]  # 1-sigma meters (N, E, D)
     coordinate_frame: str                        # "WGS84" or "LOCAL_NED"
     mono_ts: float
@@ -115,15 +146,27 @@ class NavState:
 class LinkStatus:
     connected: bool
     latency_ms: float
-    rssi_dbm: Optional[float]
+    rssi_dbm: float | None
     quality_pct: float              # 0-100
     last_heartbeat_ts: float
+
+@dataclass(frozen=True)
+class ThreatSignal:
+    track_id: int
+    type: str                       # "weapon", "aggressive_behavior", etc.
+    confidence: float
+
+@dataclass(frozen=True)
+class ActionConstraints:
+    max_duration_sec: float | None = None
+    max_deviation_m: float | None = None
+    min_altitude_m: float | None = None
 
 @dataclass(frozen=True)
 class ThreatAssessment:
     level: ThreatLevel
     score: float                    # 0-100
-    threats: list[dict]             # [{track_id, type, confidence}, ...]
+    threats: tuple[ThreatSignal, ...]
     mono_ts: float
 
 @dataclass(frozen=True)
@@ -131,15 +174,15 @@ class Recommendation:
     action: str                     # "TRACK_CLOSELY", "ALERT_AUTHORITIES", "RETURN_TO_BASE"
     priority: int                   # 1 (highest) - 5 (lowest)
     rationale: str
-    constraints: dict
-    roe_rule_id: Optional[str]
+    constraints: ActionConstraints
+    roe_rule_id: str | None
 
 @dataclass(frozen=True)
 class ActionDecision:
     approved: bool
     action: str
     authority: str                  # "OPERATOR", "ROE_AUTONOMOUS", "CER_OVERRIDE"
-    constraints: dict
+    constraints: ActionConstraints
     audit_id: str
 ```
 
@@ -177,6 +220,27 @@ class GPSHAL(Protocol):
     def read(self) -> Optional[GPSFix]: ...
     def close(self) -> None: ...
 
+class OpticalFlowHAL(Protocol):
+    """Downward-facing optical flow sensor (e.g., PX4Flow).
+    
+    Provides raw X/Y velocity even when ORB-SLAM3 fails (featureless terrain).
+    Almost zero compute — a cheap hardware safety net for GPS-denied flight.
+    """
+    def open(self, config: dict) -> None: ...
+    def read(self) -> Optional[OpticalFlowReading]: ...
+    def close(self) -> None: ...
+
+class AltimeterHAL(Protocol):
+    """Laser/radar altimeter for absolute Z-axis altitude.
+    
+    Barometers drift with weather. A cheap LiDAR altimeter gives ground-truth
+    height, taking massive strain off the EKF's vertical uncertainty estimate.
+    """
+    def open(self, config: dict) -> None: ...
+    def read_altitude(self) -> Optional[tuple[float, float]]: ...
+    """Returns (altitude_m, mono_ts) or None if no reading."""
+    def close(self) -> None: ...
+
 class ObjectDetectorInterface(Protocol):
     def detect(self, frame: TimestampedFrame) -> list[Detection]: ...
     def get_class_names(self) -> list[str]: ...
@@ -208,6 +272,8 @@ class NavigationEKFInterface(Protocol):
     def update_gps(self, gps: GPSFix) -> NavState: ...
     def update_vio(self, vio_pose: NavState) -> NavState: ...
     def update_baro(self, altitude: float, mono_ts: float) -> NavState: ...
+    def update_optical_flow(self, flow: OpticalFlowReading) -> NavState: ...
+    def update_altimeter(self, altitude: float, mono_ts: float) -> NavState: ...
     def get_state(self) -> NavState: ...
 
 class DecisionEngineInterface(Protocol):
