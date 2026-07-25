@@ -12,12 +12,7 @@ Uses typing.Protocol (structural typing):
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Protocol, runtime_checkable
-
-if TYPE_CHECKING:
-    from numpy.typing import NDArray
-
-    import numpy as np
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from aerialmind.core.types import (
     ActionDecision,
@@ -37,6 +32,10 @@ from aerialmind.core.types import (
     Track,
 )
 
+if TYPE_CHECKING:
+    import numpy as np
+    from numpy.typing import NDArray
+
 
 # ---------------------------------------------------------------------------
 # HAL Protocols — Hardware Abstraction Layer
@@ -55,7 +54,7 @@ class CameraHAL(Protocol):
         """Initialize the camera with platform-specific config."""
         ...
 
-    def read_frame(self) -> Optional[NDArray[np.uint8]]:
+    def read_frame(self) -> NDArray[np.uint8] | None:
         """Capture a single frame. Returns None on failure."""
         ...
 
@@ -116,7 +115,7 @@ class IMUHAL(Protocol):
         """Initialize the IMU with platform-specific config."""
         ...
 
-    def read(self) -> Optional[TimestampedIMU]:
+    def read(self) -> TimestampedIMU | None:
         """Read a single IMU sample. Returns None on failure."""
         ...
 
@@ -148,7 +147,7 @@ class GPSHAL(Protocol):
         """Initialize the GPS receiver."""
         ...
 
-    def read(self) -> Optional["GPSFix"]:
+    def read(self) -> GPSFix | None:
         """Read a GPS fix. Returns None if no fix available."""
         ...
 
@@ -171,7 +170,7 @@ class OpticalFlowHAL(Protocol):
         """Initialize the optical flow sensor."""
         ...
 
-    def read(self) -> Optional[OpticalFlowReading]:
+    def read(self) -> OpticalFlowReading | None:
         """Read an optical flow measurement. Returns None on failure."""
         ...
 
@@ -195,7 +194,7 @@ class AltimeterHAL(Protocol):
         """Initialize the altimeter."""
         ...
 
-    def read_altitude(self) -> Optional[tuple[float, float]]:
+    def read_altitude(self) -> tuple[float, float] | None:
         """Read altitude. Returns (altitude_m, mono_ts) or None."""
         ...
 
@@ -315,7 +314,7 @@ class VIOEngineInterface(Protocol):
         self,
         frame: TimestampedFrame,
         imu_readings: list[TimestampedIMU],
-    ) -> Optional[NavState]:
+    ) -> NavState | None:
         """Process a camera frame with IMU readings since the last frame.
 
         Returns None if tracking is lost (insufficient visual features).
@@ -470,6 +469,6 @@ class TelemetryInterface(Protocol):
         """Send a threat alert to the operator. Returns success."""
         ...
 
-    def receive_command(self) -> Optional[dict[str, object]]:
+    def receive_command(self) -> dict[str, object] | None:
         """Poll for operator commands. Returns None if no command."""
         ...

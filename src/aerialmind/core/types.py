@@ -11,9 +11,8 @@ from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray
-
     import numpy as np
+    from numpy.typing import NDArray
 
 
 # ---------------------------------------------------------------------------
@@ -94,9 +93,13 @@ class ResourcePriority(Enum):
 # ---------------------------------------------------------------------------
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class TimestampedFrame:
     """A camera frame with capture metadata.
+
+    Uses eq=False because numpy arrays don't support element-wise
+    == in a boolean context. Identity comparison (is) is the correct
+    semantic — two frames are distinct captures even if pixels match.
 
     Attributes:
         frame: Raw pixel data as H x W x C numpy array (uint8).
@@ -204,9 +207,11 @@ class Detection:
     confidence: float
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class PoseResult:
     """Skeletal pose estimation for one detected person.
+
+    Uses eq=False because the keypoints field is a numpy array.
 
     Attributes:
         keypoints: K x 3 numpy array — K body joints, each with
@@ -256,14 +261,14 @@ class BehaviorEvent:
         event_type: Behavior label — "fight", "weapon_brandish",
                     "crowd_surge", "loitering", etc.
         confidence: Classification confidence, 0.0-1.0.
-        involved_tracks: List of track_ids involved in this event.
+        involved_tracks: Track IDs involved in this event (tuple for immutability).
         location_frame: Center (x, y) in frame coordinates.
         mono_ts: When this event was detected.
     """
 
     event_type: str
     confidence: float
-    involved_tracks: list[int]
+    involved_tracks: tuple[int, ...]
     location_frame: tuple[float, float]
     mono_ts: float
 
@@ -281,7 +286,7 @@ class NavState:
         position: (lat, lon, alt) in WGS84 or (north, east, down) in
                   local NED frame, depending on coordinate_frame.
         velocity: (vn, ve, vd) in m/s, NED frame.
-        attitude: Orientation as quaternion (w, x, y, z).
+        attitude_wxyz: Orientation as quaternion (w, x, y, z).
         position_uncertainty: 1-sigma uncertainty in meters (north, east, down).
                               Grows over time in GPS-denied mode. Used by the
                               CER controller to decide when to abort RTB.
@@ -292,7 +297,7 @@ class NavState:
 
     position: tuple[float, float, float]
     velocity: tuple[float, float, float]
-    attitude: tuple[float, float, float, float]
+    attitude_wxyz: tuple[float, float, float, float]
     position_uncertainty: tuple[float, float, float]
     coordinate_frame: str
     mono_ts: float
@@ -319,20 +324,52 @@ class LinkStatus:
 
 
 @dataclass(frozen=True)
+class ThreatSignal:
+    """A single threat signal contributing to a ThreatAssessment.
+
+    Attributes:
+        track_id: ID of the tracked object that triggered this signal.
+        type: Threat category — "weapon", "aggressive_behavior", etc.
+        confidence: Signal confidence, 0.0-1.0.
+    """
+
+    track_id: int
+    type: str
+    confidence: float
+
+
+@dataclass(frozen=True)
+class ActionConstraints:
+    """Execution constraints applied to an autonomous action.
+
+    All fields are optional — only the constraints relevant to
+    the specific action are set.
+
+    Attributes:
+        max_duration_sec: Maximum time the action may last.
+        max_deviation_m: Maximum distance from current position.
+        min_altitude_m: Minimum altitude floor during action.
+    """
+
+    max_duration_sec: float | None = None
+    max_deviation_m: float | None = None
+    min_altitude_m: float | None = None
+
+
+@dataclass(frozen=True)
 class ThreatAssessment:
     """Composite threat score from the threat assessor.
 
     Attributes:
         level: Discrete threat level (NONE through CRITICAL).
         score: Continuous threat score, 0-100.
-        threats: Individual threat signals, e.g.,
-                 [{"track_id": 7, "type": "weapon", "confidence": 0.87}].
+        threats: Individual threat signals (tuple for immutability).
         mono_ts: When this assessment was computed.
     """
 
     level: ThreatLevel
     score: float
-    threats: list[dict[str, object]]
+    threats: tuple[ThreatSignal, ...]
     mono_ts: float
 
 
@@ -345,8 +382,7 @@ class Recommendation:
                 "RETURN_TO_BASE", "POP_UP_AND_SEARCH".
         priority: 1 (highest) to 5 (lowest).
         rationale: Human-readable reason for this recommendation.
-        constraints: Action-specific limits, e.g.,
-                     {"max_duration_sec": 120, "max_deviation_m": 200}.
+        constraints: Typed execution constraints.
         roe_rule_id: ID of the ROE rule that generated this recommendation
                      (None if operator-initiated). This is the audit trail.
     """
@@ -354,7 +390,7 @@ class Recommendation:
     action: str
     priority: int
     rationale: str
-    constraints: dict[str, object]
+    constraints: ActionConstraints
     roe_rule_id: str | None
 
 
@@ -367,7 +403,7 @@ class ActionDecision:
         action: The action being decided on.
         authority: Who approved — "OPERATOR", "ROE_AUTONOMOUS",
                    or "CER_OVERRIDE".
-        constraints: Execution constraints applied to this action.
+        constraints: Typed execution constraints.
         audit_id: Unique ID for compliance logging — every autonomous
                   action must be traceable.
     """
@@ -375,5 +411,5 @@ class ActionDecision:
     approved: bool
     action: str
     authority: str
-    constraints: dict[str, object]
+    constraints: ActionConstraints
     audit_id: str

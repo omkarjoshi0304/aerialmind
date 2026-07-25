@@ -60,8 +60,12 @@ class ResourcePriority(Enum):
 
 These use Python's `@dataclass(frozen=True)` — meaning once created, they cannot be modified. This is intentional: sensor readings and computed states are historical facts at the moment they're created. Immutability prevents an entire category of bugs where one module accidentally mutates data another module is still using.
 
+Types containing numpy arrays (`TimestampedFrame`, `PoseResult`) use `eq=False` because numpy arrays don't support element-wise `==` in a boolean context. Identity comparison (`is`) is the correct semantic for these — two frames are distinct captures even if pixel data matches.
+
+All container fields use immutable types: `tuple` instead of `list`, and typed frozen dataclasses (`ThreatSignal`, `ActionConstraints`) instead of `dict`. This guarantees deep immutability, not just shallow field reassignment prevention.
+
 ```python
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class TimestampedFrame:
     frame: NDArray[np.uint8]        # H x W x C
     mono_ts: float                  # monotonic timestamp (seconds)
@@ -93,7 +97,7 @@ class Detection:
     class_name: str
     confidence: float
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class PoseResult:
     keypoints: NDArray[np.float32]   # Kx3 (x, y, confidence)
     detection: Detection
@@ -112,7 +116,7 @@ class Track:
 class BehaviorEvent:
     event_type: str                  # "fight", "weapon_brandish", "crowd_surge", etc.
     confidence: float
-    involved_tracks: list[int]       # track_ids
+    involved_tracks: tuple[int, ...]  # track_ids (tuple for immutability)
     location_frame: tuple[float, float]  # center x, y in frame coords
     mono_ts: float
 
@@ -133,7 +137,7 @@ class OpticalFlowReading:
 class NavState:
     position: tuple[float, float, float]         # lat, lon, alt (or local NED if GPS-denied)
     velocity: tuple[float, float, float]         # m/s NED
-    attitude: tuple[float, float, float, float]  # quaternion (w, x, y, z)
+    attitude_wxyz: tuple[float, float, float, float]  # quaternion (w, x, y, z)
     position_uncertainty: tuple[float, float, float]  # 1-sigma meters (N, E, D)
     coordinate_frame: str                        # "WGS84" or "LOCAL_NED"
     mono_ts: float
@@ -142,15 +146,27 @@ class NavState:
 class LinkStatus:
     connected: bool
     latency_ms: float
-    rssi_dbm: Optional[float]
+    rssi_dbm: float | None
     quality_pct: float              # 0-100
     last_heartbeat_ts: float
+
+@dataclass(frozen=True)
+class ThreatSignal:
+    track_id: int
+    type: str                       # "weapon", "aggressive_behavior", etc.
+    confidence: float
+
+@dataclass(frozen=True)
+class ActionConstraints:
+    max_duration_sec: float | None = None
+    max_deviation_m: float | None = None
+    min_altitude_m: float | None = None
 
 @dataclass(frozen=True)
 class ThreatAssessment:
     level: ThreatLevel
     score: float                    # 0-100
-    threats: list[dict]             # [{track_id, type, confidence}, ...]
+    threats: tuple[ThreatSignal, ...]
     mono_ts: float
 
 @dataclass(frozen=True)
@@ -158,15 +174,15 @@ class Recommendation:
     action: str                     # "TRACK_CLOSELY", "ALERT_AUTHORITIES", "RETURN_TO_BASE"
     priority: int                   # 1 (highest) - 5 (lowest)
     rationale: str
-    constraints: dict
-    roe_rule_id: Optional[str]
+    constraints: ActionConstraints
+    roe_rule_id: str | None
 
 @dataclass(frozen=True)
 class ActionDecision:
     approved: bool
     action: str
     authority: str                  # "OPERATOR", "ROE_AUTONOMOUS", "CER_OVERRIDE"
-    constraints: dict
+    constraints: ActionConstraints
     audit_id: str
 ```
 
