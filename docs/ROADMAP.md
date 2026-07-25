@@ -53,20 +53,20 @@ main (protected — PR review required)
 
 ## Phase 1: Foundation
 
-### Feature 2: Core Types & Protocols
+### Feature 2: Core Types & Protocols ✅
 
 > Branch: `feature/core-types`
 
 | # | User Story | Commit | Status |
 |---|---|---|---|
-| 2.1 | Add core enums (OperatingMode, ThreatLevel, CERState, DecisionState) | `Add core enum types` | |
-| 2.2 | Add sensor data types (TimestampedFrame, TimestampedIMU, GPSFix) | `Add sensor data types` | |
-| 2.3 | Add vision data types (Detection, PoseResult, Track, BehaviorEvent) | `Add vision data types` | |
-| 2.4 | Add navigation data types (NavState, LinkStatus, ThreatAssessment) | `Add navigation and decision data types` | |
-| 2.5 | Add HAL protocol interfaces (CameraHAL, AcceleratorHAL, IMUHAL, GPSHAL) | `Add HAL protocol interfaces` | |
-| 2.6 | Add vision protocol interfaces (ObjectDetector, Tracker, BehaviorAnalyzer) | `Add vision protocol interfaces` | |
-| 2.7 | Add navigation + decision protocol interfaces | `Add navigation and decision protocols` | |
-| 2.8 | Add unit tests for all types | `Add tests for core types` | |
+| 2.1 | Add core enums (OperatingMode, ThreatLevel, CERState, DecisionState, ResourcePriority) | `Add core enum types` | ✅ |
+| 2.2 | Add sensor data types (TimestampedFrame, TimestampedIMU, GPSFix, OpticalFlowReading) | `Add sensor data types` | ✅ |
+| 2.3 | Add vision data types (Detection, PoseResult, Track, BehaviorEvent) | `Add vision data types` | ✅ |
+| 2.4 | Add navigation data types (NavState, LinkStatus, ThreatAssessment) | `Add navigation and decision data types` | ✅ |
+| 2.5 | Add HAL protocol interfaces (CameraHAL, AcceleratorHAL, IMUHAL, GPSHAL, OpticalFlowHAL, AltimeterHAL) | `Add HAL protocol interfaces` | ✅ |
+| 2.6 | Add vision protocol interfaces (ObjectDetector, Tracker, BehaviorAnalyzer) | `Add vision protocol interfaces` | ✅ |
+| 2.7 | Add navigation + decision protocol interfaces | `Add navigation and decision protocols` | ✅ |
+| 2.8 | Add unit tests for all types (38 tests) | `Add tests for core types` | ✅ |
 
 ### Feature 3: Message Bus & Config
 
