@@ -1,0 +1,17 @@
+# HAL config for development/simulation.
+
+platform: sim
+
+camera:
+  provider: sim
+  width: 1280
+  height: 720
+  fps: 30
+  format: BGR
+
+accelerator:
+  provider: cpu
+  precision: fp32
+  max_batch_size: 1
+  workspace_mb: 1024
+  model_cache_dir: model_cache

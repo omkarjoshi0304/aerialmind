@@ -1,0 +1,28 @@
+# HAL config for Raspberry Pi 5 + Hailo-8L.
+
+platform: rpi5_hailo
+
+camera:
+  provider: v4l2
+  width: 1280
+  height: 720
+  fps: 30
+  format: BGR
+
+accelerator:
+  provider: hailo
+  precision: int8
+  max_batch_size: 1
+  workspace_mb: 256
+  model_cache_dir: /opt/aerialmind/model_cache
+
+imu:
+  provider: serial
+  device: /dev/ttyAMA0
+  baudrate: 921600
+  sample_rate_hz: 200
+
+gps:
+  provider: serial
+  device: /dev/ttyAMA1
+  baudrate: 115200

@@ -1,0 +1,28 @@
+# HAL config for NVIDIA Jetson Orin Nano.
+
+platform: jetson_orin_nano
+
+camera:
+  provider: csi
+  width: 1280
+  height: 720
+  fps: 30
+  format: NV12
+
+accelerator:
+  provider: tensorrt
+  precision: fp16
+  max_batch_size: 1
+  workspace_mb: 512
+  model_cache_dir: /opt/aerialmind/model_cache
+
+imu:
+  provider: serial
+  device: /dev/ttyTHS1
+  baudrate: 921600
+  sample_rate_hz: 400
+
+gps:
+  provider: serial
+  device: /dev/ttyTHS0
+  baudrate: 115200
