@@ -68,16 +68,16 @@ main (protected — PR review required)
 | 2.7 | Add navigation + decision protocol interfaces | `Add navigation and decision protocols` | ✅ |
 | 2.8 | Add unit tests for all types (38 tests) | `Add tests for core types` | ✅ |
 
-### Feature 3: Message Bus & Config
+### Feature 3: Message Bus & Config ✅
 
 > Branch: `feature/message-bus-config`
 
 | # | User Story | Commit | Status |
 |---|---|---|---|
-| 3.1 | Add internal pub-sub message bus | `Add internal event message bus` | |
-| 3.2 | Add Pydantic config models and YAML loader | `Add configuration loader with validation` | |
-| 3.3 | Add system.yaml and HAL config templates | `Add config templates` | |
-| 3.4 | Add tests for bus and config | `Add tests for message bus and config` | |
+| 3.1 | Add internal pub-sub message bus | `Add internal event message bus` | ✅ |
+| 3.2 | Add Pydantic config models and YAML loader | `Add configuration loader with validation` | ✅ |
+| 3.3 | Add system.yaml and HAL config templates | `Add config templates` | ✅ |
+| 3.4 | Add tests for bus and config | `Add tests for message bus and config` | ✅ |
 
 ---
 
