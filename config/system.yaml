@@ -1,0 +1,20 @@
+# AerialMind system configuration.
+
+operating_mode: CIVIL
+log_level: INFO
+
+safe_zones:
+  - lat: 37.7749
+    lon: -122.4194
+    radius_m: 500
+    label: "Base Station Alpha"
+  - lat: 37.7849
+    lon: -122.4094
+    radius_m: 300
+    label: "Rally Point Bravo"
+
+paths:
+  hal_config: config/hal/sim.yaml
+  roe_policy: config/roe/civil_standard.yaml
+  mode_config: config/modes/default.yaml
+  behavior_config: config/behaviors/default.yaml
