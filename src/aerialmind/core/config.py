@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from aerialmind.core.types import OperatingMode
 
@@ -105,6 +105,16 @@ class SystemConfig(BaseModel):
     log_level: str = "INFO"
     safe_zones: tuple[SafeZone, ...] = ()
     paths: PathsConfig = Field(default_factory=PathsConfig)
+
+    @field_validator("operating_mode", mode="before")
+    @classmethod
+    def _coerce_operating_mode(cls, v: object) -> object:
+        if isinstance(v, str):
+            try:
+                return OperatingMode[v]
+            except KeyError:
+                pass
+        return v
 
 
 # ---------------------------------------------------------------------------
