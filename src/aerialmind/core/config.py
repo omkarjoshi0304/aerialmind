@@ -7,7 +7,6 @@ project's frozen-dataclass convention.
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from typing import Any
 
@@ -15,9 +14,6 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from aerialmind.core.types import OperatingMode
-
-logger = logging.getLogger(__name__)
-
 
 # ---------------------------------------------------------------------------
 # HAL config models
@@ -113,7 +109,9 @@ class SystemConfig(BaseModel):
             try:
                 return OperatingMode[v]
             except KeyError:
-                pass
+                valid = ", ".join(m.name for m in OperatingMode)
+                msg = f"Invalid operating mode '{v}'. Valid values: {valid}"
+                raise ValueError(msg) from None
         return v
 
 

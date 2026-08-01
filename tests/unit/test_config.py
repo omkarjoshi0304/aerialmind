@@ -196,6 +196,10 @@ class TestSystemConfig:
         with pytest.raises(ValidationError):
             SystemConfig(operating_mode="INVALID")  # type: ignore[arg-type]
 
+    def test_operating_mode_case_sensitive(self) -> None:
+        with pytest.raises(ValidationError):
+            SystemConfig(operating_mode="civil")  # type: ignore[arg-type]
+
 
 # ---------------------------------------------------------------------------
 # YAML loader tests
