@@ -83,18 +83,18 @@ main (protected — PR review required)
 
 ## Phase 2: Hardware Abstraction
 
-### Feature 4: HAL Implementation
+### Feature 4: HAL Implementation ✅
 
 > Branch: `feature/hal-layer`
 
 | # | User Story | Commit | Status |
 |---|---|---|---|
-| 4.1 | Add hardware discovery service (probe for CUDA, Hailo, cameras) | `Add hardware discovery service` | |
-| 4.2 | Add SimCameraProvider (generates test frames) | `Add simulated camera provider` | |
-| 4.3 | Add CPUFallbackProvider (ONNX Runtime on CPU) | `Add CPU fallback accelerator` | |
-| 4.4 | Add SimIMUProvider and SimGPSProvider | `Add simulated IMU and GPS providers` | |
-| 4.5 | Add HAL config YAML loader per platform | `Add HAL config loader` | |
-| 4.6 | Add integration test: all sim providers working together | `Add HAL integration tests` | |
+| 4.1 | Add hardware discovery service (probe for CUDA, Hailo, cameras) | `Add hardware discovery service` | ✅ |
+| 4.2 | Add SimCameraProvider (generates test frames) | `Add simulated camera provider` | ✅ |
+| 4.3 | Add CPUFallbackProvider (ONNX Runtime on CPU) | `Add CPU fallback accelerator` | ✅ |
+| 4.4 | Add SimIMUProvider and SimGPSProvider | `Add simulated IMU and GPS providers` | ✅ |
+| 4.5 | Add HAL config YAML loader per platform | `Add HAL config loader` | ✅ |
+| 4.6 | Add integration test: all sim providers working together | `Add HAL integration tests` | ✅ |
 
 ---
 
